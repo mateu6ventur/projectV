@@ -1,0 +1,39 @@
+name: Daily Ski Scraping
+on:
+  schedule:
+    - cron: '0 7 * * *'  # 8h hora espanyola (UTC+1) = 7h UTC
+  workflow_dispatch:      # Permet execució manual des de GitHub
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Descarrega el codi del repositori
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      # 2. Configura Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # 3. Instal·la les dependències
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+      # 4. Executa el scraping
+      - name: Run scraper
+        run: python scraping/main.py
+      # 5. Puja el CSV com a artefacte descarregable (es conserva 90 dies)
+      - name: Upload CSV artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ski-data-${{ github.run_number }}
+          path: scraping/data/ski_data.csv
+          retention-days: 90
+      # 6. Fa commit del CSV actualitzat al repositori
+      - name: Commit updated CSV
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scraping/data/ski_data.csv
+          git diff --cached --quiet || git commit -m "data: scraping diari $(date +'%Y-%m-%d')"
+          git push
